@@ -1,0 +1,21 @@
+# 웹 프레임워크 및 서버
+fastapi==0.115.2
+uvicorn[standard]==0.30.6
+
+# 데이터베이스
+SQLAlchemy==2.0.34
+psycopg2==2.9.9
+
+# 데이터 검증
+pydantic==2.8.2
+email-validator>=2.0.0
+
+# 환경 변수 관리
+python-dotenv==1.0.1
+
+# 데이터베이스 마이그레이션 (선택사항)
+alembic==1.13.2
+
+# 개발 도구 (선택사항)
+black==24.8.0
+ruff==0.6.5
