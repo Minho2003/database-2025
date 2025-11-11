@@ -47,4 +47,3 @@ def delete_coupon(
         raise HTTPException(status_code=403, detail="해당 가게의 소유자가 아닙니다")
     
     return coupon_service.delete_coupon(db, store_id, coupon_id)
-
