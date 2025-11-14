@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>사장님 페이지</title>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #f8f9fa;
+  font-family: 'Jua', sans-serif;
+}
+
+.app-container {
+  max-width: 480px;
+  margin: 0 auto;
+  background: #fff;
+  min-height: 100vh;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+/* 상단바 */
+.top-bar {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 2px solid #eee;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  font-size: 26px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: bold;
+  flex: 1;
+  text-align: center;
+  margin-right: 35px;
+}
+
+/* 본문 */
+.section {
+  padding: 20px;
+}
+
+.label {
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+
+.input-box, textarea, select {
+  width: 100%;
+  font-family: 'Jua', sans-serif;
+  border: 2px solid #e9ecef;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 16px;
+  margin-bottom: 15px;
+}
+
+textarea {
+  resize: none;
+  height: 90px;
+}
+
+/* 메뉴 리스트 */
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+.menu-name {
+  font-size: 17px;
+}
+
+.menu-delete {
+  background: #ff6b6b;
+  border: none;
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+/* 리뷰 삭제 */
+.review-item {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+}
+
+.review-delete {
+  background: #ff6b6b;
+  border: none;
+  color: #fff;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 6px;
+}
+
+/* 저장 버튼 */
+.save-btn {
+  width: 90%;
+  margin: 20px auto;
+  display: block;
+  padding: 16px;
+  background: #00d2be;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 20px;
+  cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+<div class="app-container">
+
+  <!-- 상단바 -->
+  <header class="top-bar">
+    <button class="back-btn" onclick="location.href='setting.html'">←</button>
+    <h1 class="page-title">사장님 페이지</h1>
+  </header>
+
+  <!-- 본문 -->
+  <div class="section">
+
+    <div class="label">가게 이름</div>
+    <input type="text" id="storeName" class="input-box" placeholder="가게 이름을 입력하세요">
+
+    <div class="label">카테고리</div>
+    <select id="storeCategory">
+      <option value="korean">한식</option>
+      <option value="japanese">일식</option>
+      <option value="chinese">중식</option>
+      <option value="western">양식</option>
+      <option value="snack">분식</option>
+      <option value="fastfood">패스트푸드</option>
+    </select>
+
+    <div class="label">가게 정보 (설명 / 운영시간 / 휴무일 / 배달팁 등)</div>
+    <textarea id="storeDescription" placeholder="가게 정보를 입력하세요"></textarea>
+
+    <hr style="margin:20px 0; border:1px solid #eee;">
+
+    <div class="label">메뉴 추가</div>
+    <input type="text" id="menuName" class="input-box" placeholder="메뉴 이름">
+    <input type="number" id="menuPrice" class="input-box" placeholder="가격">
+
+    <button class="save-btn" style="background:#6c5ce7" onclick="addMenu()">메뉴 추가하기</button>
+
+    <div class="label">등록된 메뉴</div>
+    <div id="menuList"></div>
+
+    <hr style="margin:20px 0; border:1px solid #eee;">
+
+    <div class="label">리뷰 관리 (삭제만 가능)</div>
+    <div id="reviewList"></div>
+
+    <button class="save-btn" onclick="saveStore()">저장하기</button>
+  </div>
+
+</div>
+
+<script>
+// ===============================
+// 로그인 사용자 정보
+// ===============================
+let user = JSON.parse(localStorage.getItem("currentUser") || "null");
+if (!user) location.href = "firstpage.html";
+
+// ===============================
+// 기존 stores 불러오기
+// ===============================
+let stores = JSON.parse(localStorage.getItem("stores") || "[]");
+
+// 현재 사용자의 가게 ID
+let myStore = stores.find(s => s.ownerId === user.id);
+let myStoreId = myStore ? myStore.id : null;
+
+// ===============================
+// 기존 가게 정보 화면에 반영
+// ===============================
+if (myStore) {
+  storeName.value = myStore.name;
+  storeCategory.value = myStore.category;
+  storeDescription.value = myStore.description;
+
+  renderMenus(myStore.menus || []);
+  renderReviews(myStore.reviewsList || []);
+} else {
+  renderMenus([]);
+  renderReviews([]);
+}
+
+// ===============================
+// 메뉴 렌더링
+// ===============================
+function renderMenus(list) {
+  let area = document.getElementById("menuList");
+  area.innerHTML = "";
+
+  list.forEach((m, idx) => {
+    let div = document.createElement("div");
+    div.className = "menu-item";
+    div.innerHTML = `
+      <span class="menu-name">${m.name} - ${m.price.toLocaleString()}원</span>
+      <button class="menu-delete" onclick="deleteMenu(${idx})">삭제</button>
+    `;
+    area.appendChild(div);
+  });
+}
+
+// 메뉴 추가
+function addMenu() {
+  let name = menuName.value.trim();
+  let price = parseInt(menuPrice.value);
+
+  if (!name || !price) {
+    alert("메뉴 이름과 가격을 입력해주세요.");
+    return;
+  }
+
+  if (!myStore) {
+    myStore = {
+      id: Date.now(),
+      ownerId: user.id,
+      name: "",
+      category: "",
+      description: "",
+      menus: [],
+      reviewsList: []
+    };
+    myStoreId = myStore.id;
+    stores.push(myStore);
+  }
+
+  myStore.menus.push({ name, price });
+  renderMenus(myStore.menus);
+
+  menuName.value = "";
+  menuPrice.value = "";
+}
+
+// 메뉴 삭제
+function deleteMenu(i) {
+  if (!myStore) return;
+  myStore.menus.splice(i, 1);
+  renderMenus(myStore.menus);
+}
+
+// ===============================
+// 리뷰 렌더링 + 삭제
+// ===============================
+function renderReviews(list) {
+  let area = document.getElementById("reviewList");
+  area.innerHTML = "";
+
+  list.forEach((r, idx) => {
+    let div = document.createElement("div");
+    div.className = "review-item";
+    div.innerHTML = `
+      ⭐ ${r.rating} | ${r.user}<br>
+      ${r.text}
+      <br><button class="review-delete" onclick="deleteReview(${idx})">삭제</button>
+    `;
+    area.appendChild(div);
+  });
+}
+
+// 리뷰 삭제
+function deleteReview(i) {
+  if (!myStore) return;
+  myStore.reviewsList.splice(i, 1);
+  renderReviews(myStore.reviewsList);
+}
+
+// ===============================
+// 저장하기
+// ===============================
+function saveStore() {
+  if (!myStore) {
+    myStore = {
+      id: Date.now(),
+      ownerId: user.id,
+      menus: [],
+      reviewsList: []
+    };
+    stores.push(myStore);
+  }
+
+  myStore.name = storeName.value.trim();
+  myStore.category = storeCategory.value;
+  myStore.description = storeDescription.value;
+
+  // 저장
+  localStorage.setItem("stores", JSON.stringify(stores));
+
+  // 내 정보에 가게ID 저장
+  user.myStoreId = myStore.id;
+  localStorage.setItem("currentUser", JSON.stringify(user));
+
+  alert("가게 정보가 저장되었습니다!");
+
+  // ===== FastAPI 연동 시 사용할 자리 =====
+  /*
+  fetch("/api/store/update",{
+      method:"PUT",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(myStore)
+  })
+  */
+
+  location.href = "setting.html";
+}
+</script>
+
+</body>
+</html>

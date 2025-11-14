@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>찜 목록</title>
+
+    <!-- 폰트 및 기본 설정 -->
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Jua&display=swap");
+
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: "Jua", sans-serif;
+        background-color: #f8f9fa;
+      }
+
+      .app-container {
+        display: flex;
+        flex-direction: column;
+        max-width: 480px;
+        margin: 0 auto;
+        min-height: 100vh;
+        background-color: #ffffff;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      }
+
+      /* 상단바 */
+      .top-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 2px solid #f0f0f0;
+      }
+
+      .back-btn {
+        border: none;
+        background: none;
+        font-size: 24px;
+        cursor: pointer;
+        transition: transform 0.2s;
+      }
+
+      .back-btn:hover {
+        transform: scale(1.1);
+      }
+
+      .page-title {
+        flex: 1;
+        text-align: center;
+        font-size: 22px;
+        font-weight: bold;
+        color: #2d3436;
+      }
+
+      .placeholder {
+        width: 40px;
+      }
+
+      /* 찜 목록 */
+      .favorite-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 20px;
+      }
+
+      .favorite-item {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px;
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        background-color: #ffffff;
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+
+      .favorite-item:hover {
+        border-color: #00d2be;
+        box-shadow: 0 4px 12px rgba(0, 210, 190, 0.2);
+        transform: translateY(-2px);
+      }
+
+      .fav-icon {
+        font-size: 40px;
+        flex-shrink: 0;
+      }
+
+      .fav-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .fav-name {
+        font-size: 18px;
+        font-weight: bold;
+        color: #2d3436;
+        margin: 0;
+      }
+
+      .fav-desc {
+        font-size: 14px;
+        color: #6c757d;
+        margin: 0;
+      }
+
+      .fav-rating {
+        font-size: 14px;
+        color: #ffc107;
+      }
+
+      .empty-msg {
+        text-align: center;
+        margin-top: 100px;
+        font-size: 18px;
+        color: #adb5bd;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="app-container">
+      <!-- 상단바 -->
+      <header class="top-bar">
+        <button class="back-btn" onclick="history.back()">←</button>
+        <h1 class="page-title">찜 목록</h1>
+        <div class="placeholder"></div>
+      </header>
+
+      <!-- 찜 목록 -->
+      <main id="favoriteList" class="favorite-list"></main>
+      <p id="emptyMsg" class="empty-msg" style="display: none">
+        찜한 가게가 없습니다 💔
+      </p>
+    </div>
+
+    <script>
+      // ===========================
+      // [1] 로컬 스토리지에서 찜 목록 불러오기
+      // ===========================
+      function loadFavorites() {
+        const favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
+        const list = document.getElementById("favoriteList");
+        const emptyMsg = document.getElementById("emptyMsg");
+
+        list.innerHTML = "";
+
+        if (favorites.length === 0) {
+          emptyMsg.style.display = "block";
+          return;
+        } else {
+          emptyMsg.style.display = "none";
+        }
+
+        // 목록 렌더링
+        favorites.forEach((store) => {
+          const item = document.createElement("div");
+          item.className = "favorite-item";
+
+          item.innerHTML = `
+            <div class="fav-icon">${store.icon || "🏪"}</div>
+            <div class="fav-info">
+              <p class="fav-name">${store.name}</p>
+              <p class="fav-desc">${store.description || "가게 설명 없음"}</p>
+              <p class="fav-rating">⭐ ${store.rating ?? "N/A"}</p>
+            </div>
+          `;
+
+          // ===========================
+          // [2] 찜된 가게 클릭 → 상세페이지 이동
+          // ===========================
+          item.addEventListener("click", () => {
+            // storedetail.html?id=가게ID 로 이동
+            window.location.href = `storedetail.html?id=${store.id}`;
+          });
+
+          list.appendChild(item);
+        });
+      }
+
+      // ===========================
+      // [3] 페이지 로드 시 찜 목록 렌더링
+      // ===========================
+      loadFavorites();
+
+      // ===========================
+      // [4] 백엔드 연동 시 추가할 API 위치
+      // ===========================
+      /*
+      🔹 백엔드 연동(FastAPI 기준) 계획
+
+      (1) 찜 목록 불러오기:
+          GET /api/favorites
+          → 서버에서 로그인된 사용자 기준으로 찜 목록 반환
+          → 아래 코드에서 localStorage.getItem("favorites") 대신 fetch 호출
+
+          예시:
+          fetch("/api/favorites")
+            .then(res => res.json())
+            .then(data => { favorites = data; renderFavorites(); });
+
+      (2) 찜 추가/삭제 (storedetail.html에서 사용)
+          POST /api/favorites/{store_id}
+          DELETE /api/favorites/{store_id}
+
+          → storedetail.html에서 localStorage.setItem() 대신 fetch 호출
+
+      (3) 찜한 가게 클릭 시 상세페이지 이동은 그대로
+          storedetail.html?id={store_id}
+      */
+    </script>
+  </body>
+</html>

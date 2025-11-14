@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>가게 상세</title>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0; padding: 0;
+  font-family: 'Jua', sans-serif;
+  background-color: #f8f9fa;
+}
+
+.app-container {
+  max-width: 480px;
+  margin: 0 auto;
+  background-color: #ffffff;
+  min-height: 100vh;
+}
+
+/* 상단바 */
+.top-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 20px;
+  border-bottom: 2px solid #f0f0f0;
+  background-color: #ffffff;
+  position: sticky; top: 0;
+  z-index: 10;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  font-size: 24px;
+  transition: transform 0.2s;
+}
+
+.back-btn:hover {
+  transform: scale(1.1);
+}
+
+.app-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #2d3436;
+}
+
+.top-icons {
+  display: flex;
+  gap: 16px;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  font-size: 24px;
+  transition: transform 0.2s;
+}
+
+.icon-btn:hover { transform: scale(1.1); }
+
+/* 제목 + 찜 버튼 */
+.store-title-row {
+  padding: 20px;
+  border-bottom: 2px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.store-name {
+  font-size: 24px;
+  color: #2d3436;
+}
+
+.like-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.like-toggle-btn.active svg path {
+  fill: #ff6b81;
+  stroke: #ff6b81;
+}
+
+/* 탭 */
+.tab-menu {
+  display: flex;
+  border-bottom: 2px solid #e9ecef;
+  background-color: #ffffff;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 14px;
+  background: none;
+  border: none;
+  color: #6c757d;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  border-bottom: 3px solid #00d2be;
+  color: #00d2be;
+  font-weight: bold;
+}
+
+.section {
+  display: none;
+  padding: 20px;
+}
+.section.active { display: block; }
+
+/* 메뉴 */
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 14px;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  background-color: #ffffff;
+  margin-bottom: 14px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.menu-item:hover {
+  border-color: #00d2be;
+  box-shadow: 0 4px 12px rgba(0,210,190,0.2);
+}
+.menu-name { font-size: 17px; color: #2d3436; font-weight: bold; }
+.menu-price { font-size: 17px; color: #00d2be; }
+
+/* 리뷰 */
+.review-box {
+  padding: 12px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+.review-user { font-size: 15px; font-weight: bold; color: #2d3436; }
+.review-text { margin-top: 4px; font-size: 14px; color: #6c757d; }
+
+.info-text {
+  font-size: 15px; color: #6c757d;
+  line-height: 1.5; margin: 4px 0;
+}
+</style>
+</head>
+
+<body>
+<div class="app-container">
+
+<header class="top-bar">
+  <button class="back-btn" id="backBtn" aria-label="뒤로가기">←</button>
+  <h1 class="app-title">맛집 DB</h1>
+  <div class="top-icons">
+    <button class="icon-btn" id="favoriteBtn">❤️</button>
+    <button class="icon-btn" id="cartBtn">🛒</button>
+  </div>
+</header>
+
+<div class="store-title-row">
+  <h2 class="store-name" id="storeName">가게명</h2>
+  <button class="like-toggle-btn" id="likeToggleBtn">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+         stroke="#adb5bd" stroke-width="2">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 
+          0L12 5.67l-1.06-1.06a5.5 5.5 0 0 
+          0-7.78 7.78l1.06 1.06L12 
+          21.23l7.78-7.78 1.06-1.06a5.5 
+          5.5 0 0 0 0-7.78z"></path>
+    </svg>
+  </button>
+</div>
+
+<div class="tab-menu">
+  <button class="tab-btn active" data-tab="menu">메뉴</button>
+  <button class="tab-btn" data-tab="info">가게정보</button>
+  <button class="tab-btn" data-tab="review">리뷰</button>
+</div>
+
+<!-- 메뉴 섹션 -->
+<div class="section active" id="section-menu"></div>
+
+<!-- 정보 섹션 -->
+<div class="section" id="section-info">
+  <p class="info-text" id="info-desc"></p>
+  <p class="info-text">⭐ 평점: <span id="info-rating"></span></p>
+  <p class="info-text">💬 리뷰 수: <span id="info-reviews"></span></p>
+  <p class="info-text">📦 주문 수: <span id="info-orders"></span></p>
+</div>
+
+<!-- 리뷰 섹션 -->
+<div class="section" id="section-review"></div>
+
+</div>
+
+<script>
+// ---------- URL storeId ----------
+var storeId = parseInt(new URLSearchParams(location.search).get("id")) || 1;
+
+// ---------- 기존 stores 불러오기 ----------
+var stores = JSON.parse(localStorage.getItem("stores") || "[]");
+
+// ---------- storeData 찾기 ----------
+var storeData =
+  stores.find(s => s.id === storeId) ||
+  {
+    id: storeId,
+    name: "맛있는 한식당",
+    description: "정성스럽게 만든 한식 요리!",
+    rating: 4.8,
+    reviews: 120,
+    orders: 550,
+    menus: [
+      { name: "김치찌개", price: 9000 },
+      { name: "제육볶음", price: 8500 },
+      { name: "된장찌개", price: 8000 }
+    ],
+    reviewsList: [
+      { user: "익명1", rating: 5, text: "꿀맛" },
+      { user: "익명2", rating: 4, text: "괜찮아요" }
+    ]
+  };
+
+// ---------- DOM 채우기 ----------
+document.getElementById("storeName").textContent = storeData.name;
+document.getElementById("info-desc").textContent = storeData.description;
+document.getElementById("info-rating").textContent = storeData.rating;
+document.getElementById("info-reviews").textContent = storeData.reviews;
+document.getElementById("info-orders").textContent = storeData.orders;
+
+// ---------- 메뉴 렌더링 ----------
+var menuSection = document.getElementById("section-menu");
+menuSection.innerHTML = "";
+storeData.menus.forEach(m => {
+  var div = document.createElement("div");
+  div.className = "menu-item";
+  div.innerHTML = `
+    <span class="menu-name">${m.name}</span>
+    <span class="menu-price">${m.price.toLocaleString()}원</span>
+  `;
+
+  div.onclick = function () {
+    var cart = JSON.parse(localStorage.getItem("cart") || "[]");
+
+    var found = cart.find(i =>
+      i.storeId === storeData.id && i.menuName === m.name);
+
+    if (found) found.quantity++;
+    else {
+      cart.push({
+        storeId: storeData.id,
+        storeName: storeData.name,
+        menuName: m.name,
+        price: m.price,
+        quantity: 1
+      });
+    }
+
+    localStorage.setItem("cart", JSON.stringify(cart));
+    alert("장바구니에 담았습니다!");
+  };
+
+  menuSection.appendChild(div);
+});
+
+// ---------- 리뷰 렌더링 ----------
+var reviewSection = document.getElementById("section-review");
+reviewSection.innerHTML = "";
+storeData.reviewsList.forEach(r => {
+  var box = document.createElement("div");
+  box.className = "review-box";
+  box.innerHTML = `
+    <div class="review-user">⭐${r.rating} ${r.user}</div>
+    <div class="review-text">${r.text}</div>
+  `;
+  reviewSection.appendChild(box);
+});
+
+// ---------- 탭 전환 ----------
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", function () {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+
+    this.classList.add("active");
+    document.getElementById("section-" + this.dataset.tab).classList.add("active");
+  });
+});
+
+/* ============================================================
+   7) 찜 기능 (favorites 구조 like.html과 동일하게 저장)
+   ============================================================ */
+const likeBtn = document.getElementById("likeToggleBtn");  // ★ 수정된 부분
+const heartPath = likeBtn.querySelector("path");
+
+// localStorage에 깨진 값 제거
+let favorites = JSON.parse(localStorage.getItem("favorites") || "[]")
+  .filter(x => x && typeof x.id !== "undefined");
+
+// 저장
+localStorage.setItem("favorites", JSON.stringify(favorites));
+
+function updateHeart(active) {
+  if (active) {
+    likeBtn.classList.add("active");
+    heartPath.setAttribute("fill", "#ff6b81");
+    heartPath.setAttribute("stroke", "#ff6b81");
+  } else {
+    likeBtn.classList.remove("active");
+    heartPath.setAttribute("fill", "none");
+    heartPath.setAttribute("stroke", "#adb5bd");
+  }
+}
+
+// 현재 찜 여부
+let isLiked = favorites.some(s => s && s.id === storeData.id);
+updateHeart(isLiked);
+
+// 찜 버튼 클릭
+likeBtn.onclick = () => {
+  let favorites = JSON.parse(localStorage.getItem("favorites") || "[]")
+    .filter(x => x && typeof x.id !== "undefined");
+
+  const exists = favorites.some(s => s.id === storeData.id);
+
+  if (exists) {
+    favorites = favorites.filter(s => s.id !== storeData.id);
+    updateHeart(false);
+    alert("찜 해제되었습니다.");
+  } else {
+    favorites.push({
+      id: storeData.id,
+      name: storeData.name,
+      description: storeData.description,
+      rating: storeData.rating
+    });
+    updateHeart(true);
+    alert("찜 추가되었습니다!");
+  }
+
+  localStorage.setItem("favorites", JSON.stringify(favorites));
+};
+
+
+// ---------- 상단 버튼 ----------
+document.getElementById("favoriteBtn").onclick = () => location.href = "like.html";
+document.getElementById("cartBtn").onclick = () => location.href = "orderlist2.html";
+
+const backBtn = document.getElementById("backBtn");
+if (backBtn) {
+  backBtn.addEventListener("click", () => {
+    // 가게 목록 페이지로 이동
+    window.location.href = "storelist2.html";
+  });
+}
+
+</script>
+
+</body>
+</html>
