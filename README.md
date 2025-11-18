@@ -4,12 +4,84 @@ Flask 기반의 배달 앱 백엔드 시스템입니다. 사용자(고객), 사�
 
 ## 🚀 시작하기
 
-### 필수 요구사항
+### 방법 1: Docker로 실행 (권장)
+
+Docker를 사용하면 MySQL과 웹 애플리케이션을 자동으로 설정하고 실행할 수 있습니다.
+
+#### 필수 요구사항
+- Docker Desktop 또는 Docker Engine
+- Docker Compose
+
+#### 설치 및 실행 방법
+
+1. **저장소 클론 및 디렉토리 이동**
+```bash
+cd database
+```
+
+2. **환경 변수 설정**
+`.env` 파일을 프로젝트 루트에 생성하고 다음 내용을 추가하세요:
+```env
+# 데이터베이스 설정
+DB_HOST=db
+DB_USER=root
+DB_PASSWD=your_root_password
+DB_NAME=DeliveryBase
+DB_PORT=3306
+
+# 루트 비밀번호 (MySQL 초기화용)
+DB_ROOT_PASSWD=your_root_password
+```
+
+3. **Docker 컨테이너 빌드 및 실행**
+```bash
+docker compose up --build
+```
+
+4. **애플리케이션 접속**
+- 웹 애플리케이션: `http://localhost:5001`
+- MySQL 데이터베이스: `localhost:3307` (외부 접속용)
+
+> **참고**: 
+> - 첫 실행 시 MySQL 컨테이너가 초기화되며 `create.sql`이 자동으로 실행됩니다.
+> - 기본 데이터(지불방식 2개, 카테고리 6개)가 자동으로 삽입됩니다.
+> - 컨테이너를 중지하려면 `Ctrl+C`를 누르거나 `docker compose down`을 실행하세요.
+> - 컨테이너를 백그라운드에서 실행하려면 `docker compose up -d`를 사용하세요.
+
+#### Docker 명령어
+```bash
+# 컨테이너 시작
+docker compose up
+
+# 컨테이너 시작 (백그라운드)
+docker compose up -d
+
+# 컨테이너 중지
+docker compose down
+
+# 컨테이너 재빌드 및 시작
+docker compose up --build
+
+# 로그 확인
+docker compose logs -f
+
+# 특정 서비스 로그 확인
+docker compose logs -f web
+docker compose logs -f db
+```
+
+---
+
+### 방법 2: Docker 없이 실행
+
+로컬 환경에서 직접 실행하는 방법입니다.
+
+#### 필수 요구사항
 - Python 3.8 이상
-- MySQL 8.0 이상
+- MySQL 8.0 이상 (로컬에 설치되어 있어야 함)
 - pip
 
-### 설치 방법
+#### 설치 및 실행 방법
 
 1. **저장소 클론 및 디렉토리 이동**
 ```bash
@@ -27,14 +99,25 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. **환경 변수 설정**
+4. **MySQL 데이터베이스 생성**
+MySQL에 접속하여 데이터베이스를 생성하세요:
+```sql
+CREATE DATABASE DeliveryBase CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+또는 `create.sql` 파일을 직접 실행하세요:
+```bash
+mysql -u root -p < create.sql
+```
+
+5. **환경 변수 설정**
 `.env` 파일을 프로젝트 루트에 생성하고 다음 내용을 추가하세요:
 ```env
 SECRET_KEY=your-secret-key-here
 DB_HOST=localhost
 DB_USER=root
-DB_PASSWORD=your_password
-DB_NAME=test
+DB_PASSWD=your_password
+DB_NAME=DeliveryBase
 DB_PORT=3306
 ```
 
@@ -43,12 +126,12 @@ DB_PORT=3306
 SECRET_KEY=your-secret-key-here
 DB_HOST=localhost
 DB_USER=root
-DB_PASSWORD=
-DB_NAME=test
+DB_PASSWD=
+DB_NAME=DeliveryBase
 DB_PORT=3306
 ```
 
-5. **애플리케이션 실행**
+6. **애플리케이션 실행**
 ```bash
 python app.py
 ```
@@ -297,21 +380,50 @@ database/
 
 ## 🐛 문제 해결
 
-### 데이터베이스 연결 실패
+### Docker 관련 문제
+
+#### 데이터베이스 연결 실패 (Docker)
+- 컨테이너가 정상적으로 실행 중인지 확인하세요: `docker compose ps`
+- `.env` 파일의 `DB_HOST=db`, `DB_USER=root`, `DB_PASSWD`, `DB_NAME=DeliveryBase`가 올바른지 확인하세요.
+- MySQL 컨테이너 로그 확인: `docker compose logs db`
+- 웹 컨테이너 로그 확인: `docker compose logs web`
+- 컨테이너를 재시작해보세요: `docker compose restart`
+
+#### 포트 충돌 (Docker)
+- 기본 포트는 5001입니다. 다른 포트를 사용하려면 `docker-compose.yml`의 `ports` 섹션을 수정하세요.
+- 포트가 이미 사용 중인 경우: `docker compose down` 후 다른 포트로 변경하세요.
+
+#### 컨테이너가 시작되지 않을 때
+- Docker Desktop이 실행 중인지 확인하세요.
+- 컨테이너를 완전히 제거하고 다시 시작: `docker compose down -v && docker compose up --build`
+- 볼륨을 삭제하고 초기화: `docker volume rm database_db_data`
+
+### 로컬 실행 관련 문제
+
+#### 데이터베이스 연결 실패 (로컬)
 - MySQL 서버가 실행 중인지 확인하세요.
-- `.env` 파일의 `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`이 올바른지 확인하세요.
-- 데이터베이스가 생성되어 있는지 확인하세요.
+- `.env` 파일의 `DB_HOST=localhost`, `DB_USER=root`, `DB_PASSWD`, `DB_NAME=DeliveryBase`가 올바른지 확인하세요.
+- 데이터베이스가 생성되어 있는지 확인하세요: `mysql -u root -p -e "SHOW DATABASES;"`
+- MySQL 포트가 3306인지 확인하세요.
 
-### 포트 충돌
+#### 포트 충돌 (로컬)
 - 기본 포트는 5001입니다. 다른 포트를 사용하려면 환경 변수 `PORT`를 설정하세요.
+- 포트가 이미 사용 중인 경우: `lsof -i :5001`로 프로세스를 확인하고 종료하세요.
 
-### 기본 데이터가 없을 때
+### 공통 문제
+
+#### 기본 데이터가 없을 때
 - 앱을 재시작하면 자동으로 기본 데이터가 삽입됩니다.
 - 또는 관리자 페이지에서 수동으로 데이터를 생성할 수 있습니다.
 
-### 관리자 페이지 접근
+#### 관리자 페이지 접근
 - 관리자 페이지는 `/admin/page`에서 접근할 수 있습니다.
 - 로그인 정보: 아이디 `root`, 비밀번호 `root`
+
+#### 테이블이 생성되지 않을 때
+- 데이터베이스 연결이 정상인지 확인하세요.
+- `create.sql` 파일이 올바른지 확인하세요.
+- 로그에서 에러 메시지를 확인하세요.
 
 ## 📄 라이선스
 
