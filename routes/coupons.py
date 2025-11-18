@@ -1,22 +1,36 @@
 from flask import Blueprint, request, jsonify
-from models import db, Coupon, Store
-from utils.auth import owner_required, get_current_owner, verify_store_ownership
+from models import db, Coupon, Store, Owner
+from utils.auth import login_required, get_current_user
 
 bp = Blueprint('coupons', __name__)
 
 @bp.route('/store/<int:store_id>', methods=['POST'])
-@owner_required
+@login_required
 def create_coupon(store_id):
-    """쿠폰 생성 (사장 인증 + 소유권 확인)"""
-    owner = get_current_owner()
+    """쿠폰 생성 (User 로그인 필요 - User가 Owner 역할)"""
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': '로그인이 필요합니다.'}), 401
+    
+    # 가게 존재 확인
+    store = Store.query.get(store_id)
+    if not store:
+        return jsonify({'error': '가게를 찾을 수 없습니다.'}), 404
+    
+    # User의 user_id로 Owner 찾기
+    owner = Owner.query.filter_by(owner_id=user.user_id).first()
     if not owner:
-        return jsonify({'error': '사장 인증이 필요합니다.'}), 401
+        return jsonify({'error': '사장님 정보를 찾을 수 없습니다.'}), 404
     
     # 가게 소유권 확인
-    if not verify_store_ownership(store_id, owner.id):
+    if store.owner_id != owner.id:
         return jsonify({'error': '가게 소유권이 없습니다.'}), 403
     
     data = request.get_json()
+    
+    # 필수 필드 검증
+    if 'discount' not in data or data.get('discount') is None:
+        return jsonify({'error': '할인 금액 또는 할인율을 입력해주세요.'}), 400
     
     coupon = Coupon(
         store_id=store_id,
@@ -44,15 +58,25 @@ def get_store_coupons(store_id):
     } for coupon in coupons]), 200
 
 @bp.route('/store/<int:store_id>/<int:coupon_id>', methods=['DELETE'])
-@owner_required
+@login_required
 def delete_coupon(store_id, coupon_id):
-    """쿠폰 삭제 (사장 인증 + 소유권 확인)"""
-    owner = get_current_owner()
+    """쿠폰 삭제 (User 로그인 필요 - User가 Owner 역할)"""
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': '로그인이 필요합니다.'}), 401
+    
+    # 가게 존재 확인
+    store = Store.query.get(store_id)
+    if not store:
+        return jsonify({'error': '가게를 찾을 수 없습니다.'}), 404
+    
+    # User의 user_id로 Owner 찾기
+    owner = Owner.query.filter_by(owner_id=user.user_id).first()
     if not owner:
-        return jsonify({'error': '사장 인증이 필요합니다.'}), 401
+        return jsonify({'error': '사장님 정보를 찾을 수 없습니다.'}), 404
     
     # 가게 소유권 확인
-    if not verify_store_ownership(store_id, owner.id):
+    if store.owner_id != owner.id:
         return jsonify({'error': '가게 소유권이 없습니다.'}), 403
     
     coupon = Coupon.query.filter_by(id=coupon_id, store_id=store_id).first()

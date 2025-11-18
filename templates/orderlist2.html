@@ -216,14 +216,29 @@
 
       .star {
         font-size: 32px;
-        color: #e9ecef;
         cursor: pointer;
         transition: all 0.2s;
         user-select: none;
+        display: inline-block;
       }
 
-      .star.active {
+      .star.active,
+      .star.hover-active {
         color: #ffc107;
+      }
+      
+      .star.active::before,
+      .star.hover-active::before {
+        content: '⭐';
+      }
+      
+      .star:not(.active):not(.hover-active)::before {
+        content: '☆';
+        color: #adb5bd;
+      }
+      
+      .star::before {
+        display: inline-block;
       }
 
       .star:hover {
@@ -374,11 +389,11 @@
         <div class="rating-section">
           <div class="rating-label">평점을 선택해주세요</div>
           <div class="star-rating" id="starRating">
-            <span class="star" data-rating="1">⭐</span>
-            <span class="star" data-rating="2">⭐</span>
-            <span class="star" data-rating="3">⭐</span>
-            <span class="star" data-rating="4">⭐</span>
-            <span class="star" data-rating="5">⭐</span>
+            <span class="star" data-rating="1"></span>
+            <span class="star" data-rating="2"></span>
+            <span class="star" data-rating="3"></span>
+            <span class="star" data-rating="4"></span>
+            <span class="star" data-rating="5"></span>
           </div>
         </div>
         <div class="review-content">
@@ -482,10 +497,9 @@
         // 모달 초기화
         document.getElementById('reviewContent').value = '';
         
-        // 별점 초기화 - 모든 별의 active 클래스 제거 및 색상 초기화
+        // 별점 초기화 - 모든 별의 active 클래스 제거
         document.querySelectorAll('.star').forEach(star => {
           star.classList.remove('active');
-          star.style.color = ''; // 인라인 스타일 제거
         });
         
         // 모달 제목 업데이트
@@ -511,8 +525,9 @@
           selectedRating = rating;
           
           // 별점 표시 업데이트 (1부터 rating까지 활성화)
-          document.querySelectorAll('.star').forEach((s, idx) => {
-            if (idx < rating) {
+          document.querySelectorAll('.star').forEach((s) => {
+            const starRating = parseInt(s.getAttribute('data-rating'));
+            if (starRating <= rating) {
               s.classList.add('active');
             } else {
               s.classList.remove('active');
@@ -524,20 +539,24 @@
         star.addEventListener('mouseenter', function() {
           const rating = parseInt(this.getAttribute('data-rating'));
           
-          // 호버 시 미리보기 (active 클래스는 유지하면서 임시로 색상 변경)
-          document.querySelectorAll('.star').forEach((s, idx) => {
-            if (idx < rating && !s.classList.contains('active')) {
-              s.style.color = '#ffc107';
+          // 호버 시 미리보기 (선택된 별점은 유지하면서 호버한 별까지 미리보기)
+          document.querySelectorAll('.star').forEach((s) => {
+            const starRating = parseInt(s.getAttribute('data-rating'));
+            if (starRating <= rating) {
+              // 호버 중인 별까지 임시로 active 클래스 추가 (원래 active는 유지)
+              if (!s.classList.contains('active')) {
+                s.classList.add('hover-active');
+              }
+            } else {
+              s.classList.remove('hover-active');
             }
           });
         });
 
         star.addEventListener('mouseleave', function() {
-          // 호버 해제 시 active가 아닌 별은 원래 색상으로
+          // 호버 해제 시 hover-active 클래스 제거
           document.querySelectorAll('.star').forEach((s) => {
-            if (!s.classList.contains('active')) {
-              s.style.color = '#e9ecef';
-            }
+            s.classList.remove('hover-active');
           });
         });
       });
@@ -571,6 +590,7 @@
             },
             body: JSON.stringify({
               store_id: currentStoreId,
+              order_id: currentOrderId,  // 주문 ID 추가
               rating: selectedRating,
               content: content
             })

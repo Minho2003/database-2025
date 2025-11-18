@@ -193,6 +193,10 @@ body {
 <!-- 정보 섹션 -->
 <div class="section" id="section-info">
   <p class="info-text" id="info-desc"></p>
+  <p class="info-text">📞 전화번호: <span id="info-phone"></span></p>
+  <p class="info-text">🕐 운영시간: <span id="info-operationTime"></span></p>
+  <p class="info-text">📅 휴무일: <span id="info-closedDay"></span></p>
+  <p class="info-text" id="info-information" style="display:none; white-space: pre-wrap; line-height: 1.6; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e9ecef;"></p>
   <p class="info-text">⭐ 평점: <span id="info-rating"></span></p>
   <p class="info-text">💬 리뷰 수: <span id="info-reviews"></span></p>
   <p class="info-text">📦 주문 수: <span id="info-orders"></span></p>
@@ -244,13 +248,24 @@ async function loadStoreData() {
     // minprice에서 "원" 제거 (이미 "원"이 포함되어 있을 수 있음)
     const minpriceValue = store.minprice ? store.minprice.replace(/원/g, '') : '0';
     
+    // 리뷰에서 평균 별점 계산 (백엔드에서 제공하지 않는 경우 대비)
+    let avgRating = 0;
+    if (reviews.length > 0) {
+      const sum = reviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+      avgRating = Math.round((sum / reviews.length) * 10) / 10; // 소수점 첫째자리까지
+    }
+    
     storeData = {
       id: store.id,
       name: store.store_name,
       description: `${minpriceValue}원 이상 주문 가능`,
-      rating: 4.5, // 기본값 (리뷰에서 계산 가능)
-      reviews: store.reviewCount || 0,
-      orders: 0, // 주문 수는 별도 API 필요
+      phone: store.phone || '',
+      operationTime: store.operationTime || '',
+      closedDay: store.closedDay || '',
+      information: store.information || '',  // 가게 정보
+      rating: store.avgRating || avgRating,  // 백엔드에서 계산된 평균 별점 또는 프론트에서 계산
+      reviews: store.reviewCount || reviews.length,  // 실제 리뷰 수
+      orders: store.orderCount || 0,  // 백엔드에서 계산된 주문 수
       menus: menus.map(m => ({ name: m.menu, price: m.price })),
       reviewsList: reviews.map(r => ({
         user: r.user_name || '익명',
@@ -263,6 +278,15 @@ async function loadStoreData() {
     // ---------- DOM 채우기 ----------
     document.getElementById("storeName").textContent = storeData.name;
     document.getElementById("info-desc").textContent = storeData.description;
+    document.getElementById("info-phone").textContent = storeData.phone || '등록되지 않음';
+    document.getElementById("info-operationTime").textContent = storeData.operationTime || '등록되지 않음';
+    document.getElementById("info-closedDay").textContent = storeData.closedDay || '등록되지 않음';
+    if (storeData.information) {
+      document.getElementById("info-information").textContent = storeData.information;
+      document.getElementById("info-information").style.display = "block";
+    } else {
+      document.getElementById("info-information").style.display = "none";
+    }
     document.getElementById("info-rating").textContent = storeData.rating;
     document.getElementById("info-reviews").textContent = storeData.reviews;
     document.getElementById("info-orders").textContent = storeData.orders;
@@ -302,6 +326,15 @@ function renderMenus() {
       // 장바구니는 세션 또는 localStorage에 임시 저장 (주문 페이지에서 사용)
       var cart = JSON.parse(localStorage.getItem("cart") || "[]");
 
+      // 다른 가게의 메뉴가 장바구니에 있으면 기존 장바구니 비우기
+      if (cart.length > 0 && cart[0].storeId !== storeData.id) {
+        if (confirm("다른 가게의 메뉴가 장바구니에 있습니다. 기존 장바구니를 비우고 새로 담으시겠습니까?")) {
+          cart = [];
+        } else {
+          return; // 사용자가 취소하면 장바구니에 추가하지 않음
+        }
+      }
+
       var found = cart.find(i =>
         i.storeId === storeData.id && i.menuName === m.name);
 
@@ -312,7 +345,8 @@ function renderMenus() {
           storeName: storeData.name,
           menuName: m.name,
           price: m.price,
-          quantity: 1
+          quantity: 1,
+          _id: Date.now() + Math.random() // 고유 ID 추가
         });
       }
 

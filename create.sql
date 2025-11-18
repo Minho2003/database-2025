@@ -16,6 +16,8 @@ CREATE TABLE `menu` (
 CREATE TABLE `review` (
 	`id`	int	NOT NULL,
 	`user_id`	int	NOT NULL,
+	`store_id`	int	NOT NULL,
+	`order_id`	int	NULL,
 	`rating`	int	NOT NULL,
 	`content`	string(200)	NULL,
 	`created_at`	datetime	NOT NULL,
@@ -95,6 +97,7 @@ CREATE TABLE `store` (
 	`reviewCount`	int	NOT NULL,
 	`operationTime`	string(250)	NOT NULL,
 	`closedDay`	string(250)	NOT NULL,
+	`information` string(500) NOT NULL,
 	`created_at`	datetime	NOT NULL,
 	`update_at`	datetime	NULL
 );
@@ -145,6 +148,8 @@ ALTER TABLE `store` ADD CONSTRAINT `PK_STORE` PRIMARY KEY (
 
 -- 외래키 제약조건
 ALTER TABLE `store` ADD CONSTRAINT `FK_STORE_PAYMENT` FOREIGN KEY (`payment_id`) REFERENCES `payment` (`id`);
+ALTER TABLE `review` ADD CONSTRAINT `FK_REVIEW_STORE` FOREIGN KEY (`store_id`) REFERENCES `store` (`id`);
+ALTER TABLE `review` ADD CONSTRAINT `FK_REVIEW_ORDER` FOREIGN KEY (`order_id`) REFERENCES `order` (`id`);
 
 -- 기본 지불방식 데이터 추가
 INSERT INTO `payment` (`payment`) VALUES

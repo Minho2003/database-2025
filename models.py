@@ -78,6 +78,7 @@ class Store(db.Model):
     reviewCount = db.Column(db.Integer, default=0, nullable=False)
     operationTime = db.Column(db.String(250), nullable=False)
     closedDay = db.Column(db.String(250), nullable=False)
+    information = db.Column(db.String(500), nullable=True)  # 가게 정보
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     update_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=True)
     
@@ -87,7 +88,7 @@ class Store(db.Model):
     coupons = db.relationship('Coupon', backref='store', lazy=True)
     favorites = db.relationship('FavoriteStore', backref='store', lazy=True)
     reviews = db.relationship('Review', backref='store', lazy=True)
-    payment = db.relationship('Payment', backref='stores', lazy=True)
+    payment = db.relationship('Payment', backref='stores', lazy=True)  # 기존 단일 payment_id용 (하위 호환)
 
 class Menu(db.Model):
     __tablename__ = 'menu'
@@ -116,6 +117,7 @@ class Review(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     store_id = db.Column(db.Integer, db.ForeignKey('store.id'), nullable=False)
+    order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=True)  # 주문 ID 추가
     rating = db.Column(db.Integer, nullable=False)
     content = db.Column(db.String(200), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -141,7 +143,19 @@ class Coupon(db.Model):
     
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     store_id = db.Column(db.Integer, db.ForeignKey('store.id'), nullable=False)
-    period = db.Column(db.Integer, nullable=True)
-    discount = db.Column(db.Integer, nullable=True)
+    period = db.Column(db.Integer, nullable=True)  # 유효기간 (일 단위)
+    discount = db.Column(db.Integer, nullable=True)  # 할인 금액 또는 할인율
     is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+
+class StorePayment(db.Model):
+    __tablename__ = 'store_payment'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    store_id = db.Column(db.Integer, db.ForeignKey('store.id'), nullable=False)
+    payment_id = db.Column(db.Integer, db.ForeignKey('payment.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Relationships
+    store = db.relationship('Store', backref='store_payments', lazy=True)
+    payment = db.relationship('Payment', backref='store_payments', lazy=True)
 

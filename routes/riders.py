@@ -40,6 +40,20 @@ def get_rider(rider_id):
         'vehicle': rider.vehicle
     }), 200
 
+@bp.route('/by-user-id/<string:user_id>', methods=['GET'])
+def get_rider_by_user_id(user_id):
+    """User ID로 라이더 정보 조회"""
+    rider = Rider.query.filter_by(rider_id=user_id).first()
+    if not rider:
+        return jsonify({'error': '라이더가 등록되어 있지 않습니다.'}), 404
+    
+    return jsonify({
+        'id': rider.id,
+        'rider_id': rider.rider_id,
+        'phone': rider.phone,
+        'vehicle': rider.vehicle
+    }), 200
+
 # 템플릿 라우트
 @bp.route('/page')
 def rider_page():

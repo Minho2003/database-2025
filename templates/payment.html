@@ -74,8 +74,9 @@
     .main-content {
       flex: 1;
       padding: 20px;
-      padding-bottom: 100px;
+      padding-bottom: 220px; /* 하단 고정 영역 높이만큼 여유 공간 확보 */
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch; /* iOS 부드러운 스크롤 */
     }
     
     /* 섹션 공통 스타일 */
@@ -192,6 +193,7 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
+      margin-bottom: 20px; /* 하단 여백 추가 */
     }
     
     .payment-option {
@@ -246,6 +248,7 @@
       border-top: 2px solid #f0f0f0;
       padding: 20px;
       box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+      z-index: 10;
     }
     
     .price-breakdown {
@@ -346,7 +349,8 @@
     </section><!-- 결제 방식 -->
     <section class="section">
      <h2 class="section-title">결제 방식</h2>
-     <div class="payment-methods"><label class="payment-option" id="cardOption"> <input type="radio" name="payment" value="card" class="payment-radio" id="cardRadio"> <span class="payment-label">만나서 카드결제</span> <span class="payment-icon">💳</span> </label> <label class="payment-option" id="cashOption"> <input type="radio" name="payment" value="cash" class="payment-radio" id="cashRadio"> <span class="payment-label">만나서 현금결제</span> <span class="payment-icon">💵</span> </label>
+     <div class="payment-methods" id="paymentMethods">
+       <!-- 가게의 지불방식이 여기에 동적으로 추가됩니다 -->
      </div>
     </section>
    </main><!-- 하단 주문 영역 -->
@@ -375,7 +379,7 @@
 
     let cartData = [];
     let selectedCoupon = null;
-    let selectedPayment = null;
+    let selectedPayment = null; // 하나만 선택 가능
 
     // 장바구니 데이터 불러오기
     function loadCartData() {
@@ -463,17 +467,97 @@
       }
     }
 
+    // 가게의 지불방식 불러오기 - 백엔드 API에서 가져오기
+    async function loadStorePayments() {
+      const paymentMethods = document.getElementById('paymentMethods');
+      paymentMethods.innerHTML = '';
+      
+      // URL에서 store_id 가져오기
+      const urlParams = new URLSearchParams(window.location.search);
+      const storeId = urlParams.get('store_id');
+      
+      if (!storeId) {
+        console.log('가게 ID가 없습니다.');
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/customer/stores/${storeId}/payments`);
+        if (response.ok) {
+          const payments = await response.json();
+          
+          if (payments.length === 0) {
+            paymentMethods.innerHTML = '<p style="color: #6c757d; text-align: center;">사용 가능한 지불방식이 없습니다.</p>';
+            return;
+          }
+          
+          payments.forEach(payment => {
+            const label = document.createElement('label');
+            label.className = 'payment-option';
+            label.id = `payment_${payment.id}`;
+            
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = 'payment';
+            radio.value = payment.id;
+            radio.className = 'payment-radio';
+            radio.id = `paymentRadio_${payment.id}`;
+            
+            const spanLabel = document.createElement('span');
+            spanLabel.className = 'payment-label';
+            spanLabel.textContent = payment.payment;
+            
+            const spanIcon = document.createElement('span');
+            spanIcon.className = 'payment-icon';
+            // 지불방식에 따라 아이콘 설정
+            if (payment.payment.includes('카드')) {
+              spanIcon.textContent = '💳';
+            } else if (payment.payment.includes('현금')) {
+              spanIcon.textContent = '💵';
+            } else {
+              spanIcon.textContent = '💰';
+            }
+            
+            label.appendChild(radio);
+            label.appendChild(spanLabel);
+            label.appendChild(spanIcon);
+            paymentMethods.appendChild(label);
+            
+            // 라디오 버튼 클릭 이벤트
+            radio.addEventListener('change', function() {
+              if (this.checked) {
+                selectedPayment = parseInt(this.value);
+                // 모든 옵션에서 selected 클래스 제거
+                document.querySelectorAll('.payment-option').forEach(opt => {
+                  opt.classList.remove('selected');
+                });
+                // 선택된 옵션에 selected 클래스 추가
+                this.closest('.payment-option').classList.add('selected');
+              }
+            });
+            
+            // 라벨 클릭 시 라디오 버튼 선택
+            label.addEventListener('click', function(e) {
+              if (e.target !== radio) {
+                radio.checked = true;
+                radio.dispatchEvent(new Event('change'));
+              }
+            });
+          });
+        }
+      } catch (error) {
+        console.error('지불방식 로드 오류:', error);
+        paymentMethods.innerHTML = '<p style="color: #dc3545; text-align: center;">지불방식을 불러올 수 없습니다.</p>';
+      }
+    }
+
     // 금액 계산
     function calculateTotal() {
       const originalPrice = cartData.reduce((sum, item) => sum + (item.price * item.quantity), 0);
       let discount = 0;
       
-      if (selectedCoupon) {
-        if (selectedCoupon.discount) {
-          discount = selectedCoupon.discount;
-        } else if (selectedCoupon.discountRate) {
-          discount = Math.floor(originalPrice * selectedCoupon.discountRate);
-        }
+      if (selectedCoupon && selectedCoupon.discount) {
+        discount = selectedCoupon.discount;
       }
       
       const totalPrice = originalPrice - discount;
@@ -600,6 +684,7 @@
     loadCartData();
     loadAddress();
     loadCoupons();
+    loadStorePayments();
 
     // 뒤로가기 버튼
     document.getElementById('backBtn').addEventListener('click', () => {
@@ -626,18 +711,7 @@
       calculateTotal();
     });
 
-    // 결제 방식 선택
-    document.querySelectorAll('input[name="payment"]').forEach(radio => {
-      radio.addEventListener('change', (e) => {
-        selectedPayment = e.target.value;
-        
-        // 선택된 옵션 스타일 변경
-        document.querySelectorAll('.payment-option').forEach(option => {
-          option.classList.remove('selected');
-        });
-        e.target.closest('.payment-option').classList.add('selected');
-      });
-    });
+    // 결제 방식 선택은 loadStorePayments() 함수 내에서 처리됨
 
     // 주문하기 버튼 - 백엔드 API 연동
     document.getElementById('orderBtn').addEventListener('click', async () => {
@@ -659,6 +733,20 @@
       if (!storeId) {
         alert('가게 정보를 찾을 수 없습니다.');
         return;
+      }
+      
+      // 가게 정보 가져오기 (minprice 확인용)
+      let storeMinprice = 0;
+      try {
+        const storeRes = await fetch(`/stores/${storeId}`);
+        if (storeRes.ok) {
+          const store = await storeRes.json();
+          // minprice에서 "원" 제거하고 숫자로 변환
+          const minpriceStr = store.minprice ? store.minprice.replace(/원/g, '').replace(/,/g, '') : '0';
+          storeMinprice = parseInt(minpriceStr) || 0;
+        }
+      } catch (e) {
+        console.error('가게 정보 조회 실패');
       }
       
       // 사용자 주소 가져오기
@@ -687,11 +775,18 @@
         totalPrice -= selectedCoupon.discount;
       }
       
+      // 최소주문금액 확인
+      if (storeMinprice > 0 && totalPrice < storeMinprice) {
+        alert(`최소주문금액이 부족합니다.\n최소주문금액: ${storeMinprice.toLocaleString()}원\n현재 금액: ${totalPrice.toLocaleString()}원`);
+        return;
+      }
+      
       // 주문 데이터 생성 (rider_id는 백엔드에서 0으로 설정됨)
       const orderData = {
         store_id: parseInt(storeId),
         order: orderItems,
-        total_price: totalPrice
+        total_price: totalPrice,
+        payment_id: selectedPayment // 선택된 결제 방식 ID 전송
       };
       
       try {

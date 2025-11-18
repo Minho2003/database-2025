@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, render_template
-from models import db, Category, Store, Menu, Payment, Coupon, Order, Rider, Owner
+from models import db, Category, Store, Menu, Payment, Coupon, Order, Rider, Owner, StorePayment
 from utils.auth import login_required, get_current_user
 
 bp = Blueprint('customer', __name__)
@@ -165,19 +165,28 @@ def delete_store_menu(store_id, menu_id):
 
 @bp.route('/stores/<int:store_id>/payments', methods=['GET'])
 def get_store_payments(store_id):
-    """가게 결제 수단 목록"""
+    """가게 결제 수단 목록 (여러 개 반환)"""
     from models import Store
     store = db.session.get(Store, store_id)
     if not store:
         return jsonify({'error': '가게를 찾을 수 없습니다.'}), 404
     
-    if not store.payment:
+    # StorePayment 테이블에서 가게의 모든 지불방식 조회
+    store_payments = StorePayment.query.filter_by(store_id=store_id).all()
+    
+    if not store_payments:
+        # 하위 호환: 기존 payment_id가 있으면 반환
+        if store.payment:
+            return jsonify([{
+                'id': store.payment.id,
+                'payment': store.payment.payment
+            }]), 200
         return jsonify([]), 200
     
     return jsonify([{
-        'id': store.payment.id,
-        'payment': store.payment.payment
-    }]), 200
+        'id': sp.payment.id,
+        'payment': sp.payment.payment
+    } for sp in store_payments]), 200
 
 @bp.route('/stores/<int:store_id>/coupons', methods=['GET'])
 def get_store_coupons(store_id):
@@ -203,10 +212,10 @@ def get_orders():
     
     result = []
     for order in orders:
-        # 해당 주문의 가게에 대해 사용자가 이미 리뷰를 작성했는지 확인
+        # 해당 주문에 대해 사용자가 이미 리뷰를 작성했는지 확인 (order_id 기준)
         existing_review = Review.query.filter_by(
             user_id=user.id,
-            store_id=order.store_id
+            order_id=order.id
         ).first()
         
         result.append({
@@ -218,7 +227,7 @@ def get_orders():
             'total_price': order.total_price,
             'order_time': order.order_time.isoformat() if order.order_time else None,
             'created_at': order.order_time.isoformat() if order.order_time else None,
-            'has_review': existing_review is not None  # 리뷰 작성 여부
+            'has_review': existing_review is not None  # 리뷰 작성 여부 (주문별)
         })
     
     return jsonify(result), 200

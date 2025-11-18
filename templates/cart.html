@@ -367,14 +367,38 @@
   // ==========================
   // 주문 버튼
   // ==========================
-  document.getElementById("orderBtn").onclick = () => {
+  document.getElementById("orderBtn").onclick = async () => {
     const cart = loadCart();
     if (cart.length === 0) {
       alert("장바구니가 비어있습니다.");
       return;
     }
-    // 주문 페이지로 이동 (store_id 전달)
+    
+    // 가게 정보 가져오기 (minprice 확인용)
     const storeId = cart[0].storeId;
+    let storeMinprice = 0;
+    try {
+      const storeRes = await fetch(`/stores/${storeId}`);
+      if (storeRes.ok) {
+        const store = await storeRes.json();
+        // minprice에서 "원" 제거하고 숫자로 변환
+        const minpriceStr = store.minprice ? store.minprice.replace(/원/g, '').replace(/,/g, '') : '0';
+        storeMinprice = parseInt(minpriceStr) || 0;
+      }
+    } catch (e) {
+      console.error('가게 정보 조회 실패');
+    }
+    
+    // 총 금액 계산
+    const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    // 최소주문금액 확인
+    if (storeMinprice > 0 && totalPrice < storeMinprice) {
+      alert(`최소주문금액이 부족합니다.\n최소주문금액: ${storeMinprice.toLocaleString()}원\n현재 금액: ${totalPrice.toLocaleString()}원`);
+      return;
+    }
+    
+    // 주문 페이지로 이동 (store_id 전달)
     window.location.href = `/customer/order?store_id=${storeId}`;
   };
 

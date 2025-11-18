@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, render_template
-from models import db, Store, Category, Owner, Payment
+from models import db, Store, Category, Owner, Payment, StorePayment, Review, Order
 from utils.auth import login_required, get_current_user, owner_required, get_current_owner, verify_store_ownership
 
 bp = Blueprint('stores', __name__)
@@ -17,7 +17,7 @@ def register():
     data = request.get_json()
     
     # 필수 필드 검증 (모든 필드가 있어야 함)
-    required_fields = ['category_id', 'store_name', 'phone', 'minprice', 'operationTime', 'closedDay', 'payment_id']
+    required_fields = ['category_id', 'store_name', 'phone', 'minprice', 'operationTime', 'closedDay', 'payment_ids']
     missing_fields = [field for field in required_fields if field not in data or not data[field]]
     if missing_fields:
         return jsonify({'error': f'필수 필드가 누락되었습니다: {", ".join(missing_fields)}'}), 400
@@ -35,14 +35,15 @@ def register():
         return jsonify({'error': '휴무일을 입력해주세요.'}), 400
     
     # 지불방식 검증
-    payment_id = data.get('payment_id')
-    if not payment_id:
-        return jsonify({'error': '지불방식을 선택해주세요.'}), 400
+    payment_ids = data.get('payment_ids', [])
+    if not payment_ids or not isinstance(payment_ids, list) or len(payment_ids) == 0:
+        return jsonify({'error': '최소 1개 이상의 지불방식을 선택해주세요.'}), 400
     
-    # 지불방식 ID가 유효한지 확인
-    payment = db.session.get(Payment, payment_id)
-    if not payment:
-        return jsonify({'error': f'존재하지 않는 지불방식 ID: {payment_id}'}), 400
+    # 지불방식 ID들이 유효한지 확인
+    for payment_id in payment_ids:
+        payment = db.session.get(Payment, payment_id)
+        if not payment:
+            return jsonify({'error': f'존재하지 않는 지불방식 ID: {payment_id}'}), 400
     
     # category_id로 Category 테이블에서 확인
     category = db.session.get(Category, data['category_id'])
@@ -67,18 +68,29 @@ def register():
     store = Store(
         owner_id=owner.id,
         category_id=data['category_id'],
-        payment_id=payment_id,
+        payment_id=payment_ids[0] if payment_ids else None,  # 하위 호환을 위해 첫 번째 payment_id 저장
         store_name=data['store_name'],
         category=category.category,  # Category 테이블에서 가져온 카테고리 이름
         phone=data['phone'],
         minprice=data['minprice'],
         reviewCount=0,
         operationTime=data['operationTime'],
-        closedDay=data['closedDay']
+        closedDay=data['closedDay'],
+        information=data.get('information', '')  # 가게 정보 추가
     )
     
     try:
         db.session.add(store)
+        db.session.flush()  # store.id를 얻기 위해
+        
+        # StorePayment 테이블에 여러 지불방식 저장
+        for payment_id in payment_ids:
+            store_payment = StorePayment(
+                store_id=store.id,
+                payment_id=payment_id
+            )
+            db.session.add(store_payment)
+        
         db.session.commit()
         return jsonify({'message': '가게 등록이 완료되었습니다.', 'store_id': store.id}), 201
     except Exception as e:
@@ -103,7 +115,20 @@ def get_stores_by_category(category_id):
 @bp.route('/<int:store_id>', methods=['GET'])
 def get_store(store_id):
     """가게 상세 정보"""
+    from sqlalchemy import func
+    
     store = Store.query.get_or_404(store_id)
+    
+    # 평균 별점 계산
+    avg_rating_result = db.session.query(func.avg(Review.rating)).filter_by(store_id=store_id).scalar()
+    avg_rating = round(avg_rating_result, 1) if avg_rating_result else 0.0
+    
+    # 주문 수 계산
+    order_count = Order.query.filter_by(store_id=store_id).count()
+    
+    # 리뷰 수 계산 (실제 Review 테이블에서)
+    review_count = Review.query.filter_by(store_id=store_id).count()
+    
     return jsonify({
         'id': store.id,
         'owner_id': store.owner_id,
@@ -112,9 +137,12 @@ def get_store(store_id):
         'category': store.category,
         'phone': store.phone,
         'minprice': store.minprice,
-        'reviewCount': store.reviewCount,
+        'reviewCount': review_count,  # 실제 리뷰 수
+        'avgRating': avg_rating,  # 평균 별점
+        'orderCount': order_count,  # 주문 수
         'operationTime': store.operationTime,
         'closedDay': store.closedDay,
+        'information': store.information or '',  # 가게 정보 추가
         'created_at': store.created_at.isoformat()
     }), 200
 
@@ -139,7 +167,7 @@ def update_store(store_id):
     data = request.get_json()
     
     # 필수 필드 검증
-    required_fields = ['category_id', 'store_name', 'phone', 'minprice', 'operationTime', 'closedDay', 'payment_id']
+    required_fields = ['category_id', 'store_name', 'phone', 'minprice', 'operationTime', 'closedDay', 'payment_ids']
     missing_fields = [field for field in required_fields if field not in data or not data[field]]
     if missing_fields:
         return jsonify({'error': f'필수 필드가 누락되었습니다: {", ".join(missing_fields)}'}), 400
@@ -157,14 +185,15 @@ def update_store(store_id):
         return jsonify({'error': '휴무일을 입력해주세요.'}), 400
     
     # 지불방식 검증
-    payment_id = data.get('payment_id')
-    if not payment_id:
-        return jsonify({'error': '지불방식을 선택해주세요.'}), 400
+    payment_ids = data.get('payment_ids', [])
+    if not payment_ids or not isinstance(payment_ids, list) or len(payment_ids) == 0:
+        return jsonify({'error': '최소 1개 이상의 지불방식을 선택해주세요.'}), 400
     
-    # 지불방식 ID가 유효한지 확인
-    payment = db.session.get(Payment, payment_id)
-    if not payment:
-        return jsonify({'error': f'존재하지 않는 지불방식 ID: {payment_id}'}), 400
+    # 지불방식 ID들이 유효한지 확인
+    for payment_id in payment_ids:
+        payment = db.session.get(Payment, payment_id)
+        if not payment:
+            return jsonify({'error': f'존재하지 않는 지불방식 ID: {payment_id}'}), 400
     
     # category_id로 Category 테이블에서 확인
     category = db.session.get(Category, data['category_id'])
@@ -174,14 +203,26 @@ def update_store(store_id):
     # 가게 정보 업데이트
     store.category_id = data['category_id']
     store.category = category.category  # Category 테이블에서 가져온 카테고리 이름
-    store.payment_id = payment_id
+    store.payment_id = payment_ids[0] if payment_ids else None  # 하위 호환을 위해 첫 번째 payment_id 저장
     store.store_name = data['store_name']
     store.phone = data['phone']
     store.minprice = data['minprice']
     store.operationTime = data['operationTime']
     store.closedDay = data['closedDay']
+    store.information = data.get('information', '')  # 가게 정보 업데이트
     
     try:
+        # 기존 StorePayment 레코드 삭제
+        StorePayment.query.filter_by(store_id=store.id).delete()
+        
+        # 새로운 StorePayment 레코드 추가
+        for payment_id in payment_ids:
+            store_payment = StorePayment(
+                store_id=store.id,
+                payment_id=payment_id
+            )
+            db.session.add(store_payment)
+        
         db.session.commit()
         return jsonify({'message': '가게 정보가 수정되었습니다.', 'store_id': store.id}), 200
     except Exception as e:
@@ -215,6 +256,7 @@ def get_stores_by_owner(user_id):
         'minprice': store.minprice,
         'operationTime': store.operationTime,  # 운영시간 추가
         'closedDay': store.closedDay,  # 휴무일 추가
+        'information': store.information or '',  # 가게 정보 추가
         'reviewCount': store.reviewCount
     } for store in stores]), 200
 
