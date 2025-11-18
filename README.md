@@ -23,14 +23,11 @@ cd database
 `.env` 파일을 프로젝트 루트에 생성하고 다음 내용을 추가하세요:
 ```env
 # 데이터베이스 설정
-DB_HOST=db
+DB_HOST=localhost
 DB_USER=root
-DB_PASSWD=your_root_password
-DB_NAME=DeliveryBase
-DB_PORT=3306
-
-# 루트 비밀번호 (MySQL 초기화용)
 DB_ROOT_PASSWD=your_root_password
+DB_NAME=DeliveryBase
+DB_PASSWD=your_password
 ```
 
 3. **Docker 컨테이너 빌드 및 실행**
