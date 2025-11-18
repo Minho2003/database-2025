@@ -628,3 +628,188 @@ def get_stores_list():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# 각 항목별 목록 조회 API (관리 콘솔용)
+@bp.route('/categories/list', methods=['GET'])
+def list_categories():
+    """카테고리 전체 목록 조회"""
+    try:
+        categories = Category.query.all()
+        return jsonify([{
+            'id': cat.id,
+            'category': cat.category,
+            'created_at': cat.created_at.isoformat() if cat.created_at else None
+        } for cat in categories]), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/users/list', methods=['GET'])
+def list_users():
+    """사용자 전체 목록 조회"""
+    try:
+        users = User.query.all()
+        return jsonify([{
+            'id': user.id,
+            'user_id': user.user_id,
+            'email': user.email,
+            'name': user.name,
+            'address': user.address,
+            'created_at': user.created_at.isoformat() if user.created_at else None
+        } for user in users]), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/stores/list-all', methods=['GET'])
+def list_stores():
+    """가게 전체 목록 조회"""
+    try:
+        stores = Store.query.all()
+        return jsonify([{
+            'id': store.id,
+            'store_name': store.store_name,
+            'category': store.category,
+            'category_id': store.category_id,
+            'phone': store.phone,
+            'minprice': store.minprice,
+            'operationTime': store.operationTime,
+            'closedDay': store.closedDay,
+            'owner_id': store.owner_id,
+            'created_at': store.created_at.isoformat() if store.created_at else None
+        } for store in stores]), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/menus/list', methods=['GET'])
+def list_menus():
+    """메뉴 전체 목록 조회"""
+    try:
+        menus = Menu.query.all()
+        return jsonify([{
+            'id': menu.id,
+            'store_id': menu.store_id,
+            'store_name': menu.store.store_name if menu.store else None,
+            'menu': menu.menu,
+            'price': menu.price,
+            'created_at': menu.created_at.isoformat() if menu.created_at else None
+        } for menu in menus]), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/coupons/list', methods=['GET'])
+def list_coupons():
+    """쿠폰 전체 목록 조회"""
+    try:
+        coupons = Coupon.query.filter_by(is_deleted=False).all()
+        return jsonify([{
+            'id': coupon.id,
+            'store_id': coupon.store_id,
+            'store_name': coupon.store.store_name if coupon.store else None,
+            'discount': coupon.discount,
+            'period': coupon.period,
+            'created_at': coupon.created_at.isoformat() if coupon.created_at else None
+        } for coupon in coupons]), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# 각 항목별 개별 삭제 API
+@bp.route('/categories/<int:category_id>', methods=['DELETE'])
+def delete_category(category_id):
+    """카테고리 개별 삭제"""
+    try:
+        category = Category.query.get(category_id)
+        if not category:
+            return jsonify({'error': '카테고리를 찾을 수 없습니다.'}), 404
+        
+        # 해당 카테고리를 사용하는 가게가 있는지 확인
+        stores_count = Store.query.filter_by(category_id=category_id).count()
+        if stores_count > 0:
+            return jsonify({'error': f'이 카테고리를 사용하는 가게가 {stores_count}개 있습니다. 먼저 가게를 삭제해주세요.'}), 400
+        
+        db.session.delete(category)
+        db.session.commit()
+        return jsonify({'message': '카테고리가 삭제되었습니다.'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/users/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    """사용자 개별 삭제"""
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': '사용자를 찾을 수 없습니다.'}), 404
+        
+        # 관련 데이터 확인
+        orders_count = Order.query.filter_by(user_id=user_id).count()
+        reviews_count = Review.query.filter_by(user_id=user_id).count()
+        favorites_count = FavoriteStore.query.filter_by(user_id=user_id).count()
+        
+        if orders_count > 0 or reviews_count > 0 or favorites_count > 0:
+            return jsonify({'error': f'이 사용자와 관련된 데이터가 있습니다. (주문: {orders_count}, 리뷰: {reviews_count}, 찜: {favorites_count})'}), 400
+        
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({'message': '사용자가 삭제되었습니다.'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/stores/<int:store_id>', methods=['DELETE'])
+def delete_store(store_id):
+    """가게 개별 삭제"""
+    try:
+        store = Store.query.get(store_id)
+        if not store:
+            return jsonify({'error': '가게를 찾을 수 없습니다.'}), 404
+        
+        # 관련 데이터 확인
+        menus_count = Menu.query.filter_by(store_id=store_id).count()
+        coupons_count = Coupon.query.filter_by(store_id=store_id).count()
+        orders_count = Order.query.filter_by(store_id=store_id).count()
+        reviews_count = Review.query.filter_by(store_id=store_id).count()
+        favorites_count = FavoriteStore.query.filter_by(store_id=store_id).count()
+        
+        # 관련 데이터도 함께 삭제
+        Menu.query.filter_by(store_id=store_id).delete()
+        Coupon.query.filter_by(store_id=store_id).delete()
+        Review.query.filter_by(store_id=store_id).delete()
+        FavoriteStore.query.filter_by(store_id=store_id).delete()
+        # Order는 외래키 제약으로 인해 별도 처리 필요할 수 있음
+        
+        db.session.delete(store)
+        db.session.commit()
+        return jsonify({'message': f'가게가 삭제되었습니다. (메뉴 {menus_count}개, 쿠폰 {coupons_count}개, 리뷰 {reviews_count}개, 찜 {favorites_count}개도 함께 삭제됨)'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/menus/<int:menu_id>', methods=['DELETE'])
+def delete_menu(menu_id):
+    """메뉴 개별 삭제"""
+    try:
+        menu = Menu.query.get(menu_id)
+        if not menu:
+            return jsonify({'error': '메뉴를 찾을 수 없습니다.'}), 404
+        
+        db.session.delete(menu)
+        db.session.commit()
+        return jsonify({'message': '메뉴가 삭제되었습니다.'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/coupons/<int:coupon_id>', methods=['DELETE'])
+def delete_coupon(coupon_id):
+    """쿠폰 개별 삭제"""
+    try:
+        coupon = Coupon.query.get(coupon_id)
+        if not coupon:
+            return jsonify({'error': '쿠폰을 찾을 수 없습니다.'}), 404
+        
+        db.session.delete(coupon)
+        db.session.commit()
+        return jsonify({'message': '쿠폰이 삭제되었습니다.'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+

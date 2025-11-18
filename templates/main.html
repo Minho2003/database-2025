@@ -203,43 +203,8 @@
     </div>
    </header><!-- 메인 컨텐츠 -->
    <main class="main-content">
-    <div class="category-grid"><button class="category-card" data-category="korean">
-      <div class="category-icon">
-       🍚
-      </div>
-      <div class="category-name" id="koreanFood">
-       한식
-      </div></button> <button class="category-card" data-category="japanese">
-      <div class="category-icon">
-       🍣
-      </div>
-      <div class="category-name" id="japaneseFood">
-       일식
-      </div></button> <button class="category-card" data-category="chinese">
-      <div class="category-icon">
-       🥟
-      </div>
-      <div class="category-name" id="chineseFood">
-       중식
-      </div></button> <button class="category-card" data-category="western">
-      <div class="category-icon">
-       🍝
-      </div>
-      <div class="category-name" id="westernFood">
-       양식
-      </div></button> <button class="category-card" data-category="snack">
-      <div class="category-icon">
-       🍜
-      </div>
-      <div class="category-name" id="snackFood">
-       분식
-      </div></button> <button class="category-card" data-category="fastfood">
-      <div class="category-icon">
-       🍔
-      </div>
-      <div class="category-name" id="fastFood">
-       패스트푸드
-      </div></button>
+    <div class="category-grid" id="categoryGrid">
+      <!-- 카테고리 카드들이 동적으로 생성됩니다 -->
     </div>
    </main><!-- 하단바 -->
    <nav class="bottom-bar"><button class="nav-btn" id="ordersBtn">
@@ -285,12 +250,7 @@
 
     async function onConfigChange(config) {
       document.getElementById('appTitle').textContent = config.app_name || defaultConfig.app_name;
-      document.getElementById('koreanFood').textContent = config.korean_food || defaultConfig.korean_food;
-      document.getElementById('japaneseFood').textContent = config.japanese_food || defaultConfig.japanese_food;
-      document.getElementById('chineseFood').textContent = config.chinese_food || defaultConfig.chinese_food;
-      document.getElementById('westernFood').textContent = config.western_food || defaultConfig.western_food;
-      document.getElementById('snackFood').textContent = config.snack_food || defaultConfig.snack_food;
-      document.getElementById('fastFood').textContent = config.fast_food || defaultConfig.fast_food;
+      // 카테고리는 동적으로 로드되므로 여기서는 업데이트하지 않음
       document.getElementById('navOrders').textContent = config.nav_orders || defaultConfig.nav_orders;
       document.getElementById('navHome').textContent = config.nav_home || defaultConfig.nav_home;
       document.getElementById('navSettings').textContent = config.nav_settings || defaultConfig.nav_settings;
@@ -383,12 +343,7 @@
     function mapToEditPanelValues(config) {
       return new Map([
         ['app_name', config.app_name || defaultConfig.app_name],
-        ['korean_food', config.korean_food || defaultConfig.korean_food],
-        ['japanese_food', config.japanese_food || defaultConfig.japanese_food],
-        ['chinese_food', config.chinese_food || defaultConfig.chinese_food],
-        ['western_food', config.western_food || defaultConfig.western_food],
-        ['snack_food', config.snack_food || defaultConfig.snack_food],
-        ['fast_food', config.fast_food || defaultConfig.fast_food],
+        // 카테고리는 동적으로 로드되므로 제거
         ['nav_orders', config.nav_orders || defaultConfig.nav_orders],
         ['nav_home', config.nav_home || defaultConfig.nav_home],
         ['nav_settings', config.nav_settings || defaultConfig.nav_settings]
@@ -404,42 +359,57 @@
       });
     }
 
-    // 카테고리 클릭 이벤트 - 백엔드 API와 연동
-    document.querySelectorAll('.category-card').forEach(card => {
-      card.addEventListener('click', async () => {
-        const category = card.dataset.category;
-        console.log(`${category} 카테고리 선택됨`);
+    // 카테고리 아이콘 매핑
+    const categoryIconMap = {
+      '한식': '🍚',
+      '일식': '🍣',
+      '중식': '🥟',
+      '양식': '🍝',
+      '분식': '🍜',
+      '패스트푸드': '🍔',
+      '기타': '🍽️'
+    };
+
+    // 카테고리 목록 로드 및 표시
+    async function loadCategories() {
+      try {
+        const response = await fetch('/customer/categories');
+        const categories = await response.json();
         
-        // 카테고리 ID를 가져오기 위해 먼저 카테고리 목록 조회
-        try {
-          const categoriesRes = await fetch('/customer/categories');
-          const categories = await categoriesRes.json();
+        const categoryGrid = document.getElementById('categoryGrid');
+        categoryGrid.innerHTML = ''; // 기존 카드 제거
+        
+        categories.forEach(category => {
+          const card = document.createElement('button');
+          card.className = 'category-card';
+          card.dataset.categoryId = category.id;
+          card.dataset.categoryName = category.category;
           
-          // 카테고리 이름으로 매칭 (한식, 일식, 중식 등)
-          const categoryMap = {
-            'korean': '한식',
-            'japanese': '일식',
-            'chinese': '중식',
-            'western': '양식',
-            'snack': '분식',
-            'fastfood': '패스트푸드'
-          };
+          const icon = document.createElement('div');
+          icon.className = 'category-icon';
+          icon.textContent = categoryIconMap[category.category] || '🍽️';
           
-          const categoryName = categoryMap[category];
-          const foundCategory = categories.find(cat => cat.category === categoryName);
+          const name = document.createElement('div');
+          name.className = 'category-name';
+          name.textContent = category.category;
           
-          if (foundCategory) {
-            window.location.href = `/customer/storelist?category_id=${foundCategory.id}`;
-          } else {
-            // 카테고리를 찾지 못한 경우 기본값으로 이동
-            window.location.href = `/customer/storelist`;
-          }
-        } catch (error) {
-          console.error('카테고리 조회 오류:', error);
-          window.location.href = `/customer/storelist`;
-        }
-      });
-    });
+          card.appendChild(icon);
+          card.appendChild(name);
+          
+          // 카테고리 클릭 이벤트
+          card.addEventListener('click', () => {
+            window.location.href = `/customer/storelist?category_id=${category.id}`;
+          });
+          
+          categoryGrid.appendChild(card);
+        });
+      } catch (error) {
+        console.error('카테고리 로드 오류:', error);
+      }
+    }
+
+    // 페이지 로드 시 카테고리 목록 로드
+    loadCategories();
 
     // 상단 아이콘 클릭 이벤트
     document.getElementById('favoriteBtn').addEventListener('click', () => {

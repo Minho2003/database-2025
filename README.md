@@ -112,24 +112,32 @@ database/
 - 가게 등록 및 수정
 - 메뉴 관리 (추가/삭제)
 - 리뷰 조회 및 삭제
-- 지불방식 선택
+- **여러 지불방식 선택** (가게 설정 시)
 - 카테고리 선택
+- **쿠폰 관리** (추가/삭제, 할인 금액 및 유효기간 설정)
 
 ### 라이더 (Rider)
 - 라이더 등록
 - 라이더 정보 조회
 
 ### 고객 (Customer)
+- **동적 카테고리 목록 조회** (데이터베이스에서 자동 로드)
 - 카테고리별 가게 목록 조회
-- 가게 상세 정보 조회
+- 가게 상세 정보 조회 (평균 별점, 주문 수 표시)
 - 메뉴 조회
 - 장바구니 기능
 - 주문 생성 및 조회
 - 주문 내역 확인
-- 리뷰 작성
+- **리뷰 작성** (별점 선택 시 선택한 개수만큼만 표시)
 - 찜하기 기능
+- **쿠폰 적용** (할인 금액만 지원)
+- **가게별 지불방식 선택** (가게에서 설정한 지불방식만 표시)
 
 ### 관리자 (Admin)
+- **데이터베이스 관리 콘솔**
+  - 각 항목별 목록 조회 (카테고리, 사용자, 가게, 메뉴, 쿠폰)
+  - 각 항목별 개별 삭제
+  - 테이블 형태로 데이터 표시
 - 카테고리 관리 (생성, 삭제, 초기화)
 - 사용자 관리 (생성, 삭제, 초기화)
 - 가게 관리 (생성, 삭제, 초기화)
@@ -140,10 +148,11 @@ database/
 
 ### 기타 기능
 - 찜하기 (Favorite Store)
-- 리뷰 작성 및 조회
+- 리뷰 작성 및 조회 (별점 시스템 개선)
 - 지불방식 관리 (Payment)
-- 쿠폰 관리 (Coupon)
+- 쿠폰 관리 (Coupon) - 할인 금액만 지원
 - 세션 유효성 검사 미들웨어
+- **가게별 여러 지불방식 지원** (StorePayment 테이블)
 
 ## 🗄️ 데이터베이스 구조
 
@@ -169,11 +178,12 @@ database/
 - `store` - 가게 정보
 - `category` - 카테고리 정보
 - `payment` - 지불방식 정보
+- `store_payment` - 가게별 지불방식 (다대다 관계)
 - `menu` - 메뉴 정보
 - `order` - 주문 정보
 - `review` - 리뷰 정보
 - `favorite_store` - 찜하기 정보
-- `coupon` - 쿠폰 정보
+- `coupon` - 쿠폰 정보 (할인 금액만 저장)
 
 ## 🔌 주요 API 엔드포인트
 
@@ -185,19 +195,21 @@ database/
 - `POST /users/check-id` - 아이디 중복 확인
 
 ### 고객 관련
-- `GET /customer/categories` - 카테고리 목록
+- `GET /customer/categories` - 카테고리 목록 (동적 로드)
 - `GET /customer/categories/{category_id}/stores` - 카테고리별 가게 목록
-- `GET /customer/stores/{store_id}` - 가게 상세 정보
+- `GET /customer/stores/{store_id}` - 가게 상세 정보 (평균 별점, 주문 수 포함)
 - `GET /customer/stores/{store_id}/menus` - 가게 메뉴 목록
-- `GET /customer/stores/{store_id}/payments` - 가게 지불방식 목록
+- `GET /customer/stores/{store_id}/payments` - 가게 지불방식 목록 (여러 개)
+- `GET /customer/stores/{store_id}/coupons` - 가게 쿠폰 목록
 - `GET /customer/payment-methods` - 모든 지불방식 목록
 - `POST /customer/orders` - 주문 생성
 - `GET /customer/orders` - 주문 목록 조회
 
 ### 가게 관련
-- `POST /stores/register` - 가게 등록
-- `PUT /stores/{store_id}` - 가게 정보 수정
+- `POST /stores/register` - 가게 등록 (여러 지불방식 선택 가능)
+- `PUT /stores/{store_id}` - 가게 정보 수정 (여러 지불방식 선택 가능)
 - `GET /stores/owner/{user_id}` - 사장별 가게 목록
+- `GET /stores/{store_id}` - 가게 상세 정보 (평균 별점, 주문 수 계산)
 
 ### 찜하기 관련
 - `POST /favorites` - 찜하기 추가
@@ -205,12 +217,27 @@ database/
 - `GET /favorites/page` - 찜 목록 페이지
 
 ### 리뷰 관련
-- `POST /reviews` - 리뷰 작성
+- `POST /reviews` - 리뷰 작성 (별점 선택 개선)
 - `GET /reviews/store/{store_id}` - 가게별 리뷰 목록
 - `GET /reviews/order/{order_id}` - 주문별 리뷰 작성 페이지
 
+### 쿠폰 관련
+- `POST /coupons/store/{store_id}` - 쿠폰 생성 (할인 금액만)
+- `GET /coupons/store/{store_id}` - 가게 쿠폰 목록
+- `DELETE /coupons/{coupon_id}` - 쿠폰 삭제
+
 ### 관리자 관련
 - `GET /admin/page` - 관리자 페이지
+- `GET /admin/categories/list` - 카테고리 목록 조회
+- `GET /admin/users/list` - 사용자 목록 조회
+- `GET /admin/stores/list-all` - 가게 목록 조회
+- `GET /admin/menus/list` - 메뉴 목록 조회
+- `GET /admin/coupons/list` - 쿠폰 목록 조회
+- `DELETE /admin/categories/{category_id}` - 카테고리 개별 삭제
+- `DELETE /admin/users/{user_id}` - 사용자 개별 삭제
+- `DELETE /admin/stores/{store_id}` - 가게 개별 삭제
+- `DELETE /admin/menus/{menu_id}` - 메뉴 개별 삭제
+- `DELETE /admin/coupons/{coupon_id}` - 쿠폰 개별 삭제
 - `POST /admin/categories/create` - 카테고리 생성
 - `POST /admin/users/create` - 사용자 생성
 - `POST /admin/stores/create` - 가게 생성
@@ -221,6 +248,11 @@ database/
 - `POST /admin/stores/seed` - 가게 테스트 데이터 생성
 - `POST /admin/menus/seed` - 메뉴 테스트 데이터 생성
 - `POST /admin/coupons/seed` - 쿠폰 테스트 데이터 생성
+- `DELETE /admin/categories/clear` - 카테고리 전체 삭제
+- `DELETE /admin/users/clear` - 사용자 전체 삭제
+- `DELETE /admin/stores/clear` - 가게 전체 삭제
+- `DELETE /admin/menus/clear` - 메뉴 전체 삭제
+- `DELETE /admin/coupons/clear` - 쿠폰 전체 삭제
 - `POST /admin/reset` - 전체 데이터 초기화
 
 ## 🛠️ 기술 스택
@@ -240,6 +272,7 @@ database/
 - 세션 유효성 검사 미들웨어 (사용자/사장 삭제 시 자동 로그아웃)
 - 로그인 필요 경로 보호 (`@login_required` 데코레이터)
 - 사장 권한 검증 (`@owner_required` 데코레이터)
+- 가게 소유권 검증
 
 ## 📝 주요 특징
 
@@ -247,7 +280,20 @@ database/
 2. **기본 데이터 자동 삽입**: 지불방식 2개와 카테고리 6개가 자동으로 삽입됩니다.
 3. **세션 유효성 검사**: 모든 요청 전에 세션의 사용자/사장 정보가 실제로 존재하는지 확인합니다.
 4. **관리자 기능**: 웹 인터페이스를 통한 데이터 관리 및 테스트 데이터 생성 기능을 제공합니다.
-5. **카테고리별 정렬**: 가게 목록을 리뷰 수, 평균 별점, 주문 수로 정렬할 수 있습니다.
+5. **데이터베이스 관리 콘솔**: 각 항목별 목록 조회 및 개별 삭제가 가능한 관리 콘솔을 제공합니다.
+6. **동적 카테고리 로드**: 메인 페이지에서 데이터베이스의 카테고리를 동적으로 로드하여 표시합니다.
+7. **여러 지불방식 지원**: 가게별로 여러 지불방식을 설정할 수 있으며, 결제 시 가게에서 설정한 지불방식만 표시됩니다.
+8. **쿠폰 시스템**: 할인 금액 기반 쿠폰 시스템 (할인율 미지원)
+9. **리뷰 별점 시스템**: 별점 선택 시 선택한 개수만큼만 노란색으로 표시됩니다.
+10. **가게 통계**: 가게 상세 정보에 평균 별점 및 주문 수가 표시됩니다.
+
+## 🎨 UI/UX 개선사항
+
+- **메인 페이지**: 카테고리를 데이터베이스에서 동적으로 로드하여 표시
+- **리뷰 작성**: 별점 선택 시 선택한 개수만큼만 노란색으로 표시
+- **결제 페이지**: 가게에서 설정한 지불방식만 라디오 버튼으로 표시
+- **가게 상세**: 평균 별점 및 주문 수 표시
+- **관리자 페이지**: 데이터베이스 관리 콘솔 형태로 각 항목별 목록 조회 및 개별 삭제 가능
 
 ## 🐛 문제 해결
 
@@ -262,6 +308,10 @@ database/
 ### 기본 데이터가 없을 때
 - 앱을 재시작하면 자동으로 기본 데이터가 삽입됩니다.
 - 또는 관리자 페이지에서 수동으로 데이터를 생성할 수 있습니다.
+
+### 관리자 페이지 접근
+- 관리자 페이지는 `/admin/page`에서 접근할 수 있습니다.
+- 로그인 정보: 아이디 `root`, 비밀번호 `root`
 
 ## 📄 라이선스
 

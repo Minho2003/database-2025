@@ -96,6 +96,58 @@
       margin-bottom: 20px;
       color: #004085;
     }
+    
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .data-table th {
+      background-color: #00d2be;
+      color: white;
+      padding: 12px;
+      text-align: left;
+      font-weight: bold;
+    }
+    
+    .data-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .data-table tr:hover {
+      background-color: #f8f9fa;
+    }
+    
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .btn-small {
+      padding: 6px 12px;
+      font-size: 14px;
+      margin: 0;
+    }
+    
+    .table-container {
+      margin-top: 15px;
+      max-height: 500px;
+      overflow-y: auto;
+      border: 2px solid #e9ecef;
+      border-radius: 8px;
+    }
+    
+    .table-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
   </style>
 </head>
 <body>
@@ -130,7 +182,10 @@
     
     <!-- 카테고리 섹션 -->
     <div class="section">
-      <h2>📁 카테고리 (Category)</h2>
+      <div class="table-header">
+        <h2 style="margin: 0;">📁 카테고리 (Category)</h2>
+        <button class="btn" onclick="loadCategoryTable()">📋 데이터 목록 보기</button>
+      </div>
       <button class="btn" onclick="toggleCategoryForm()">직접 입력으로 생성</button>
       <button class="btn" onclick="addCategories()">테스트 데이터 추가</button>
       <button class="btn btn-danger" onclick="clearCategories()">카테고리 초기화</button>
@@ -150,12 +205,16 @@
         <button class="btn" onclick="addCategoryInput()" style="margin-right: 10px;">+ 추가</button>
         <button class="btn" onclick="createCategories()">생성하기</button>
       </div>
+      <div id="categoryTableContainer" class="table-container" style="display: none;"></div>
       <div id="categoryResult" class="result"></div>
     </div>
     
     <!-- 사용자 섹션 -->
     <div class="section">
-      <h2>👤 사용자 (User)</h2>
+      <div class="table-header">
+        <h2 style="margin: 0;">👤 사용자 (User)</h2>
+        <button class="btn" onclick="loadUserTable()">📋 데이터 목록 보기</button>
+      </div>
       <button class="btn" onclick="toggleUserForm()">직접 입력으로 생성</button>
       <button class="btn" onclick="addUsers()">테스트 데이터 추가</button>
       <button class="btn btn-danger" onclick="clearUsers()">사용자 초기화</button>
@@ -187,12 +246,16 @@
         <button class="btn" onclick="addUserInput()" style="margin-right: 10px;">+ 추가</button>
         <button class="btn" onclick="createUsers()">생성하기</button>
       </div>
+      <div id="userTableContainer" class="table-container" style="display: none;"></div>
       <div id="userResult" class="result"></div>
     </div>
     
     <!-- 가게 섹션 -->
     <div class="section">
-      <h2>🏪 가게 (Store)</h2>
+      <div class="table-header">
+        <h2 style="margin: 0;">🏪 가게 (Store)</h2>
+        <button class="btn" onclick="loadStoreTable()">📋 데이터 목록 보기</button>
+      </div>
       <button class="btn" onclick="toggleStoreForm()">직접 입력으로 생성</button>
       <button class="btn" onclick="addStores()">테스트 데이터 추가</button>
       <button class="btn btn-danger" onclick="clearStores()">가게 초기화</button>
@@ -258,12 +321,16 @@
         <button class="btn" onclick="addStoreInput()" style="margin-right: 10px;">+ 추가</button>
         <button class="btn" onclick="createStores()">생성하기</button>
       </div>
+      <div id="storeTableContainer" class="table-container" style="display: none;"></div>
       <div id="storeResult" class="result"></div>
     </div>
     
     <!-- 메뉴 섹션 -->
     <div class="section">
-      <h2>🍽️ 메뉴 (Menu)</h2>
+      <div class="table-header">
+        <h2 style="margin: 0;">🍽️ 메뉴 (Menu)</h2>
+        <button class="btn" onclick="loadMenuTable()">📋 데이터 목록 보기</button>
+      </div>
       <button class="btn" onclick="toggleMenuForm()">직접 입력으로 생성</button>
       <button class="btn" onclick="addMenus()">테스트 데이터 추가</button>
       <button class="btn btn-danger" onclick="clearMenus()">메뉴 초기화</button>
@@ -295,12 +362,16 @@
         <button class="btn" onclick="addMenuInput()" style="margin-right: 10px;">+ 추가</button>
         <button class="btn" onclick="createMenus()">생성하기</button>
       </div>
+      <div id="menuTableContainer" class="table-container" style="display: none;"></div>
       <div id="menuResult" class="result"></div>
     </div>
     
     <!-- 쿠폰 섹션 -->
     <div class="section">
-      <h2>🎫 쿠폰 (Coupon)</h2>
+      <div class="table-header">
+        <h2 style="margin: 0;">🎫 쿠폰 (Coupon)</h2>
+        <button class="btn" onclick="loadCouponTable()">📋 데이터 목록 보기</button>
+      </div>
       <button class="btn" onclick="toggleCouponForm()">직접 입력으로 생성</button>
       <button class="btn" onclick="addCoupons()">테스트 데이터 추가</button>
       <button class="btn btn-danger" onclick="clearCoupons()">쿠폰 초기화</button>
@@ -332,6 +403,7 @@
         <button class="btn" onclick="addCouponInput()" style="margin-right: 10px;">+ 추가</button>
         <button class="btn" onclick="createCoupons()">생성하기</button>
       </div>
+      <div id="couponTableContainer" class="table-container" style="display: none;"></div>
       <div id="couponResult" class="result"></div>
     </div>
     
